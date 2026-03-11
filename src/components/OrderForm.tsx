@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Send, Info, Star, Truck } from "lucide-react";
 
 const BASE_PRICE = 49.9;
 const EXTRA_CHARACTER_PRICE = 10.0;
-const CUSTOM_BOOK_PRICE = 10.0;
+const CUSTOM_DRAWING_PRICE = 10.0;
 
 const THEMES = [
   "Bluey", "Frozen", "Patrulha Canina", "Homem-Aranha", 
@@ -24,7 +24,7 @@ export function OrderForm() {
     nome: "",
     tema: "",
     outroTema: "",
-    tipoLivro: "normal",
+    tipoDesenho: "normal",
     nomeCrianca: "",
     observacoes: "",
     formaPagamento: "pix",
@@ -37,23 +37,23 @@ export function OrderForm() {
   const totalEstimado = useMemo(() => {
     let total = BASE_PRICE;
     if (formData.tema === "Outro personagem") total += EXTRA_CHARACTER_PRICE;
-    if (formData.tipoLivro === "personalizado") total += CUSTOM_BOOK_PRICE;
+    if (formData.tipoDesenho === "personalizado") total += CUSTOM_DRAWING_PRICE;
     return total;
-  }, [formData.tema, formData.tipoLivro]);
+  }, [formData.tema, formData.tipoDesenho]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     const temaFinal = formData.tema === "Outro personagem" ? `Outro (${formData.outroTema})` : formData.tema;
-    const livroFinal = formData.tipoLivro === "personalizado" ? `Personalizado com foto (${formData.nomeCrianca})` : "Normal do personagem";
+    const desenhoFinal = formData.tipoDesenho === "personalizado" ? `Personalizado com foto (${formData.nomeCrianca})` : "Normal do personagem";
     
     let message = `Olá! Quero encomendar um ovo de Páscoa.\n\n`;
     message += `*Pedido:*\n`;
-    message += `- Produto: Ovo 250g de chocolate ao leite com livro de colorir\n`;
+    message += `- Produto: Ovo 250g de chocolate ao leite com desenhos de colorir\n`;
     message += `- Cliente: ${formData.nome}\n`;
     message += `- Personagem/Tema: ${temaFinal}\n`;
     if (formData.outroTema) message += `- Outro personagem informado: ${formData.outroTema}\n`;
-    message += `- Tipo de livro: ${livroFinal}\n`;
+    message += `- Tipo de desenho: ${desenhoFinal}\n`;
     if (formData.nomeCrianca) message += `- Nome da criança: ${formData.nomeCrianca}\n`;
     if (formData.observacoes) message += `- Observações: ${formData.observacoes}\n`;
     message += `- Forma de pagamento: ${formData.formaPagamento === 'pix' ? 'Entrada 50% via Pix' : 'Link de pagamento (Cartão)'}\n`;
@@ -61,14 +61,14 @@ export function OrderForm() {
     
     if (formData.formaRecebimento === "retirada") {
       message += `- Data desejada: ${formData.dataRetirada || 'A combinar'}\n`;
-      message += `- Horário desejado: ${formData.horarioRetirada || 'A combinar'}\n`;
+      message += `- Horário desejada: ${formData.horarioRetirada || 'A combinar'}\n`;
       message += `\n*Gostaria de agendar a retirada no bairro Aventureiro.*`;
     } else {
       message += `- CEP para entrega: ${formData.cepEntrega}\n`;
       message += `\n*Aguardo consulta da taxa de entrega pelo CEP informado.*`;
     }
 
-    if (formData.tipoLivro === "personalizado") {
+    if (formData.tipoDesenho === "personalizado") {
       message += `\n\n*Vou enviar a foto da criança para personalização.*`;
     }
 
@@ -142,43 +142,43 @@ export function OrderForm() {
           <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
             <CardHeader className="bg-easter-yellow p-8">
               <CardTitle className="text-chocolate font-black uppercase text-2xl flex items-center">
-                <Star className="mr-3 h-8 w-8" /> 2. Personalização do Livro
+                <Star className="mr-3 h-8 w-8" /> 2. Personalização dos Desenhos
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <RadioGroup 
                 defaultValue="normal" 
                 className="grid md:grid-cols-2 gap-4"
-                onValueChange={(val) => setFormData({...formData, tipoLivro: val})}
+                onValueChange={(val) => setFormData({...formData, tipoDesenho: val})}
               >
                 <Label
                   htmlFor="normal"
-                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoLivro === 'normal' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
+                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'normal' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
                 >
                   <RadioGroupItem value="normal" id="normal" className="sr-only" />
-                  <span className="font-black uppercase text-chocolate mb-1">Livro Normal</span>
+                  <span className="font-black uppercase text-chocolate mb-1">Desenhos Normais</span>
                   <span className="text-xs text-gray-500 text-center">Incluso no preço base</span>
                   <span className="mt-4 bg-chocolate text-white text-[10px] px-2 py-1 rounded-full uppercase">Grátis</span>
                 </Label>
                 <Label
                   htmlFor="personalizado"
-                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoLivro === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
+                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
                 >
                   <RadioGroupItem value="personalizado" id="personalizado" className="sr-only" />
-                  <span className="font-black uppercase text-chocolate mb-1">Livro Personalizado</span>
+                  <span className="font-black uppercase text-chocolate mb-1">Desenhos Personalizados</span>
                   <span className="text-xs text-gray-500 text-center">Com foto e nome da criança</span>
                   <span className="mt-4 bg-easter-yellow text-chocolate font-black text-[10px] px-2 py-1 rounded-full uppercase">+ R$ 10,00</span>
                 </Label>
               </RadioGroup>
 
-              {formData.tipoLivro === "personalizado" && (
+              {formData.tipoDesenho === "personalizado" && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                   <Label htmlFor="nomeCrianca" className="text-chocolate font-black uppercase text-xs">Nome da Criança</Label>
                   <Input 
                     id="nomeCrianca" 
                     required 
                     className="rounded-xl border-gray-200 h-12" 
-                    placeholder="Como deve aparecer no livro?" 
+                    placeholder="Como deve aparecer nos desenhos?" 
                     value={formData.nomeCrianca}
                     onChange={(e) => setFormData({...formData, nomeCrianca: e.target.value})}
                   />

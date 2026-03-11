@@ -25,7 +25,7 @@ export function ProductInfo() {
             </li>
             <li className="flex items-center text-white text-lg font-bold">
               <CheckCircle2 className="mr-3 h-6 w-6 text-easter-yellow" /> 
-              Acompanha Livro de Colorir
+              Acompanha Desenhos de Colorir
             </li>
             <li className="flex items-center text-white text-lg font-bold">
               <CheckCircle2 className="mr-3 h-6 w-6 text-easter-yellow" /> 
@@ -61,7 +61,7 @@ export function ProductInfo() {
                 </div>
                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <div className="flex flex-col">
-                    <span className="text-chocolate font-bold">Livro Personalizado</span>
+                    <span className="text-chocolate font-bold">Desenhos Personalizados</span>
                     <span className="text-gray-500 text-xs">(Com foto e nome da criança)</span>
                   </div>
                   <span className="bg-chocolate text-white px-3 py-1 rounded-full font-black text-xs uppercase">+ R$ 10,00</span>

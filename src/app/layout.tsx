@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Ovos de Páscoa Sob Encomenda - Páscoa dos Pequenos 2026',
-  description: 'Garanta seu ovo de Páscoa artesanal de 250g com livro de colorir. Diversos temas disponíveis. Joinville/SC.',
+  description: 'Garanta seu ovo de Páscoa artesanal de 250g com desenhos de colorir. Diversos temas disponíveis. Joinville/SC.',
 };
 
 export default function RootLayout({
