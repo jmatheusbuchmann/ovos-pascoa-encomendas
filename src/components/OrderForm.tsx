@@ -165,7 +165,10 @@ export function OrderForm() {
                   className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
                 >
                   <RadioGroupItem value="personalizado" id="personalizado" className="sr-only" />
-                  <span className="font-black uppercase text-chocolate mb-1 text-center leading-tight">Desenhos personalizados com foto e nome da criança com o personagem escolhido</span>
+                  <div className="flex flex-col items-center text-center gap-1">
+                    <span className="font-black uppercase text-chocolate leading-tight">Desenhos personalizados</span>
+                    <span className="text-[10px] text-gray-600 font-normal leading-tight">com foto e nome da criança com o personagem escolhido</span>
+                  </div>
                   <span className="mt-4 bg-easter-yellow text-chocolate font-black text-[10px] px-2 py-1 rounded-full uppercase">+ R$ 10,00</span>
                 </Label>
               </RadioGroup>
