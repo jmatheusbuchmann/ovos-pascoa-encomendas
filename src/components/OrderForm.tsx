@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -80,23 +81,23 @@ export function OrderForm() {
   };
 
   return (
-    <section id="order-form" className="py-20 px-4">
+    <section id="order-form" className="py-12 md:py-20 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 md:mb-12">
           <h2 className="text-3xl md:text-5xl font-black text-white uppercase mb-4 text-shadow-sm">
             Monte seu <span className="text-easter-yellow">Pedido</span>
           </h2>
           <p className="text-white/90 font-medium">Preencha os campos abaixo com atenção.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
           <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
-            <CardHeader className="bg-easter-yellow p-8">
-              <CardTitle className="text-chocolate font-black uppercase text-2xl flex items-center">
-                <ShoppingCart className="mr-3 h-8 w-8" /> 1. Dados Básicos
+            <CardHeader className="bg-easter-yellow p-6 md:p-8">
+              <CardTitle className="text-chocolate font-black uppercase text-xl md:text-2xl flex items-center">
+                <ShoppingCart className="mr-3 h-6 w-6 md:h-8 md:w-8" /> 1. Dados Básicos
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8 space-y-6">
+            <CardContent className="p-6 md:p-8 space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="nome" className="text-chocolate font-black uppercase text-xs">Seu Nome Completo</Label>
                 <Input 
@@ -140,12 +141,12 @@ export function OrderForm() {
           </Card>
 
           <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
-            <CardHeader className="bg-easter-yellow p-8">
-              <CardTitle className="text-chocolate font-black uppercase text-2xl flex items-center">
-                <Star className="mr-3 h-8 w-8" /> 2. Brinde: Desenhos de colorir
+            <CardHeader className="bg-easter-yellow p-6 md:p-8">
+              <CardTitle className="text-chocolate font-black uppercase text-xl md:text-2xl flex items-center">
+                <Star className="mr-3 h-6 w-6 md:h-8 md:w-8" /> 2. Brinde: Desenhos de colorir
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8 space-y-6">
+            <CardContent className="p-6 md:p-8 space-y-6">
               <RadioGroup 
                 defaultValue="normal" 
                 className="grid md:grid-cols-2 gap-4"
@@ -153,20 +154,20 @@ export function OrderForm() {
               >
                 <Label
                   htmlFor="normal"
-                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'normal' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
+                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-4 md:p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'normal' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
                 >
                   <RadioGroupItem value="normal" id="normal" className="sr-only" />
-                  <span className="font-black uppercase text-chocolate mb-1 text-center">Desenhos do personagem selecionado</span>
-                  <span className="text-xs text-gray-500 text-center">Incluso no preço base</span>
+                  <span className="font-black uppercase text-chocolate mb-1 text-center text-sm md:text-base">Desenhos do personagem selecionado</span>
+                  <span className="text-[10px] md:text-xs text-gray-500 text-center">Incluso no preço base</span>
                   <span className="mt-4 bg-chocolate text-white text-[10px] px-2 py-1 rounded-full uppercase">Grátis</span>
                 </Label>
                 <Label
                   htmlFor="personalizado"
-                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
+                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-4 md:p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
                 >
                   <RadioGroupItem value="personalizado" id="personalizado" className="sr-only" />
                   <div className="flex flex-col items-center text-center gap-1">
-                    <span className="font-black uppercase text-chocolate leading-tight">Desenhos personalizados</span>
+                    <span className="font-black uppercase text-chocolate leading-tight text-sm md:text-base">Desenhos personalizados</span>
                     <span className="text-[10px] text-gray-600 font-normal leading-tight">com foto e nome da criança com o personagem escolhido</span>
                   </div>
                   <span className="mt-4 bg-easter-yellow text-chocolate font-black text-[10px] px-2 py-1 rounded-full uppercase">+ R$ 10,00</span>
@@ -191,12 +192,12 @@ export function OrderForm() {
           </Card>
 
           <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
-            <CardHeader className="bg-easter-yellow p-8">
-              <CardTitle className="text-chocolate font-black uppercase text-2xl flex items-center">
-                <Truck className="mr-3 h-8 w-8" /> 3. Entrega e Pagamento
+            <CardHeader className="bg-easter-yellow p-6 md:p-8">
+              <CardTitle className="text-chocolate font-black uppercase text-xl md:text-2xl flex items-center">
+                <Truck className="mr-3 h-6 w-6 md:h-8 md:w-8" /> 3. Entrega e Pagamento
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8 space-y-8">
+            <CardContent className="p-6 md:p-8 space-y-6 md:space-y-8">
               <div className="space-y-4">
                 <Label className="text-chocolate font-black uppercase text-xs">Como quer receber?</Label>
                 <RadioGroup 
@@ -206,11 +207,11 @@ export function OrderForm() {
                 >
                   <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-xl border border-gray-200 flex-1">
                     <RadioGroupItem value="retirada" id="retirada-opt" />
-                    <Label htmlFor="retirada-opt" className="font-bold cursor-pointer">Retirada (Grátis)</Label>
+                    <Label htmlFor="retirada-opt" className="font-bold cursor-pointer text-sm">Retirada</Label>
                   </div>
                   <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-xl border border-gray-200 flex-1">
                     <RadioGroupItem value="entrega" id="entrega-opt" />
-                    <Label htmlFor="entrega-opt" className="font-bold cursor-pointer">Entrega</Label>
+                    <Label htmlFor="entrega-opt" className="font-bold cursor-pointer text-sm">Entrega</Label>
                   </div>
                 </RadioGroup>
 
@@ -270,26 +271,26 @@ export function OrderForm() {
             </CardContent>
           </Card>
 
-          <div className="sticky bottom-6 z-40 bg-easter-yellow p-6 rounded-3xl chocolate-border shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="text-center md:text-left">
-              <p className="text-chocolate font-black uppercase text-xs tracking-widest mb-1">Total Estimado</p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-chocolate text-4xl font-black">R$ {totalEstimado.toFixed(2).replace('.', ',')}</span>
-                <span className="text-chocolate/60 text-[10px] font-bold uppercase leading-tight">+ entrega <br /> se houver</span>
+          <div className="sticky bottom-4 md:bottom-6 z-40 bg-easter-yellow p-4 md:p-6 rounded-3xl chocolate-border shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 mx-2 md:mx-0">
+            <div className="text-center md:text-left flex md:flex-col items-center md:items-start gap-2 md:gap-0">
+              <p className="text-chocolate font-black uppercase text-[10px] tracking-widest md:mb-1">Total Estimado</p>
+              <div className="flex items-baseline gap-1 md:gap-2">
+                <span className="text-chocolate text-2xl md:text-4xl font-black">R$ {totalEstimado.toFixed(2).replace('.', ',')}</span>
+                <span className="text-chocolate/60 text-[8px] md:text-[10px] font-bold uppercase leading-tight hidden xs:inline">+ entrega <br className="hidden md:block" /> se houver</span>
               </div>
             </div>
             
             <Button 
               type="submit" 
-              className="bg-chocolate text-white hover:bg-black w-full md:w-auto h-16 px-10 rounded-2xl font-black text-lg uppercase flex items-center shadow-lg transition-transform hover:scale-105 active:scale-95"
+              className="bg-chocolate text-white hover:bg-black w-full md:w-auto h-12 md:h-16 px-4 md:px-10 rounded-2xl font-black text-xs md:text-lg uppercase flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95"
             >
-              <Send className="mr-3 h-6 w-6" />
-              Enviar Pedido pelo WhatsApp
+              <Send className="mr-2 h-4 w-4 md:h-6 md:w-6" />
+              Enviar pelo WhatsApp
             </Button>
           </div>
         </form>
 
-        <div className="mt-12 bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20 text-white space-y-4">
+        <div className="mt-8 md:mt-12 bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20 text-white space-y-4">
           <div className="flex items-start gap-3">
             <Info className="h-6 w-6 text-easter-yellow shrink-0 mt-1" />
             <div>
