@@ -142,7 +142,7 @@ export function OrderForm() {
           <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
             <CardHeader className="bg-easter-yellow p-8">
               <CardTitle className="text-chocolate font-black uppercase text-2xl flex items-center">
-                <Star className="mr-3 h-8 w-8" /> 2. Personalização dos Desenhos
+                <Star className="mr-3 h-8 w-8" /> 2. Brinde: Desenhos de colorir
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
@@ -156,7 +156,7 @@ export function OrderForm() {
                   className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'normal' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
                 >
                   <RadioGroupItem value="normal" id="normal" className="sr-only" />
-                  <span className="font-black uppercase text-chocolate mb-1">Desenhos Normais</span>
+                  <span className="font-black uppercase text-chocolate mb-1 text-center">Desenhos do personagem selecionado</span>
                   <span className="text-xs text-gray-500 text-center">Incluso no preço base</span>
                   <span className="mt-4 bg-chocolate text-white text-[10px] px-2 py-1 rounded-full uppercase">Grátis</span>
                 </Label>
@@ -165,8 +165,7 @@ export function OrderForm() {
                   className={`flex flex-col items-center justify-between rounded-2xl border-2 p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
                 >
                   <RadioGroupItem value="personalizado" id="personalizado" className="sr-only" />
-                  <span className="font-black uppercase text-chocolate mb-1">Desenhos Personalizados</span>
-                  <span className="text-xs text-gray-500 text-center">Com foto e nome da criança</span>
+                  <span className="font-black uppercase text-chocolate mb-1 text-center leading-tight">Desenhos personalizados com foto e nome da criança com o personagem escolhido</span>
                   <span className="mt-4 bg-easter-yellow text-chocolate font-black text-[10px] px-2 py-1 rounded-full uppercase">+ R$ 10,00</span>
                 </Label>
               </RadioGroup>

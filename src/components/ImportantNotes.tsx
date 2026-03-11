@@ -25,11 +25,9 @@ export function ImportantNotes() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
           {[
             "Produção artesanal e limitada",
-            "Entrega rápida em Joinville",
+            "Retirada no bairro Aventureiro",
             "Embalagens seguras e higienizadas",
-            "Personagens licenciados e atuais",
-            "Personalização de alta qualidade",
-            "Atendimento humanizado via WhatsApp"
+            "Embalagem em papel cartão 180gr"
           ].map((item, i) => (
             <div key={i} className="bg-white/5 border border-white/10 p-4 rounded-xl text-white font-bold flex items-center">
               <span className="text-easter-yellow mr-3">✔</span> {item}
