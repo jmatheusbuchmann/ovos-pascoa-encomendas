@@ -19,7 +19,7 @@ export function Footer() {
         <div className="space-y-2">
           <h4 className="font-black text-sm uppercase text-white/50 mb-4 tracking-widest">Atendimento</h4>
           <p className="text-lg font-black text-easter-yellow">📱 (47) 92000-8427</p>
-          <p className="text-xs text-white/50 font-bold uppercase mt-4">Desenvolvido por José Matheus Buchmann</p>
+          <p className="text-xs text-white/50 font-bold uppercase mt-4">Desenvolvido por Idear.web</p>
         </div>
       </div>
       
