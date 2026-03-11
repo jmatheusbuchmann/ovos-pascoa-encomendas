@@ -3,7 +3,7 @@ import { CheckCircle2, Star } from "lucide-react";
 
 export function ProductInfo() {
   const themes = [
-    "Bluey", "Frozen", "Bluey Patrulha Canina", "Homem-Aranha", 
+    "Bluey", "Frozen", "Patrulha Canina", "Homem-Aranha", 
     "Casa Mágica da Gabby", "Capivara", "Stitch"
   ];
 
@@ -34,7 +34,7 @@ export function ProductInfo() {
           </ul>
 
           <div className="bg-easter-yellow p-6 rounded-2xl chocolate-border shadow-xl transform rotate-1">
-            <p className="text-chocolate font-black text-center text-xl uppercase mb-1">Preço Base</p>
+            <p className="text-chocolate font-black text-center text-xl uppercase mb-1">A partir de</p>
             <p className="text-chocolate font-black text-center text-5xl tracking-tighter">R$ 49,90</p>
           </div>
         </div>

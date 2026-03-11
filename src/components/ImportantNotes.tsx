@@ -5,7 +5,10 @@ import { Send, AlertTriangle } from "lucide-react";
 
 export function ImportantNotes() {
   const scrollToForm = () => {
-    document.getElementById("order-form")?.scrollIntoView({ behavior: "smooth" });
+    const form = document.getElementById("order-form");
+    if (form) {
+      form.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   return (

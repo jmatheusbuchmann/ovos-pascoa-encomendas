@@ -13,7 +13,7 @@ export function PromoHero() {
     <section className="relative pt-12 pb-20 px-4 overflow-hidden">
       <div className="max-w-4xl mx-auto text-center relative z-10">
         <Badge className="bg-easter-yellow text-chocolate hover:bg-easter-yellow font-bold text-sm md:text-base py-1 px-4 mb-6 chocolate-border animate-bounce-slow">
-          PROMOÇÃO DE PÁSCOA 2024
+          PÁSCOA DOS PEQUENOS 2026
         </Badge>
         
         <h1 className="text-4xl md:text-7xl font-black text-white mb-6 uppercase tracking-tight text-shadow-lg leading-none">

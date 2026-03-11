@@ -2,7 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Ovos de Páscoa Sob Encomenda - Promoção 2024',
+  title: 'Ovos de Páscoa Sob Encomenda - Páscoa dos Pequenos 2026',
   description: 'Garanta seu ovo de Páscoa artesanal de 250g com livro de colorir. Diversos temas disponíveis. Joinville/SC.',
 };
 

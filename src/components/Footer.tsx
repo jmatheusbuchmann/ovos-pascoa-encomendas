@@ -3,7 +3,7 @@ export function Footer() {
     <footer className="py-12 px-4 bg-chocolate text-white">
       <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8 text-center md:text-left">
         <div>
-          <h3 className="font-black text-xl uppercase text-easter-yellow mb-4">Ovos de Páscoa 2024</h3>
+          <h3 className="font-black text-xl uppercase text-easter-yellow mb-4">Páscoa dos Pequenos 2026</h3>
           <p className="text-white/70 text-sm leading-relaxed">
             Levando doçura e alegria para a sua Páscoa com ovos artesanais de qualidade e os personagens favoritos da garotada.
           </p>
@@ -24,7 +24,7 @@ export function Footer() {
       </div>
       
       <div className="max-w-6xl mx-auto mt-12 pt-8 border-t border-white/10 text-center text-[10px] text-white/30 uppercase font-black tracking-widest">
-        © 2024 • Todos os direitos reservados • Joinville, Brasil
+        © 2026 • Todos os direitos reservados • Joinville, Brasil
       </div>
     </footer>
   );

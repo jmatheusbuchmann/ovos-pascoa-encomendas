@@ -8,14 +8,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ShoppingCart, Send, Info } from "lucide-react";
+import { ShoppingCart, Send, Info, Star, Truck } from "lucide-react";
 
 const BASE_PRICE = 49.9;
 const EXTRA_CHARACTER_PRICE = 10.0;
 const CUSTOM_BOOK_PRICE = 10.0;
 
 const THEMES = [
-  "Bluey", "Frozen", "Bluey Patrulha Canina", "Homem-Aranha", 
+  "Bluey", "Frozen", "Patrulha Canina", "Homem-Aranha", 
   "Casa Mágica da Gabby", "Capivara", "Stitch", "Outro personagem"
 ];
 
@@ -304,12 +304,4 @@ export function OrderForm() {
       </div>
     </section>
   );
-}
-
-function Star(props: any) {
-  return <ShoppingCart {...props} />
-}
-
-function Truck(props: any) {
-  return <Send {...props} />
 }
