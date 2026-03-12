@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, Send, Truck, Plus, Trash2 } from "lucide-react";
+import { ShoppingCart, Send, Truck, Plus, Trash2, CalendarClock } from "lucide-react";
 import { useFirestore } from "@/firebase";
 import { collection, doc, writeBatch } from "firebase/firestore";
 
@@ -19,6 +19,14 @@ const CUSTOM_DRAWING_PRICE = 10.0;
 const THEMES = [
   "Bluey", "Frozen", "Patrulha Canina", "Homem-Aranha", 
   "Casa Mágica da Gabby", "Capivara", "Stitch", "Outro personagem"
+];
+
+const AVAILABLE_DATES = [
+  { value: "31/03", label: "31/03 (Segunda-feira)" },
+  { value: "01/04", label: "01/04 (Terça-feira)" },
+  { value: "02/04", label: "02/04 (Quarta-feira)" },
+  { value: "03/04", label: "03/04 (Quinta-feira)" },
+  { value: "04/04", label: "04/04 (Sexta-feira)" },
 ];
 
 interface OrderItem {
@@ -50,8 +58,8 @@ export function OrderForm() {
     observacoes: "",
     formaPagamento: "pix",
     formaRecebimento: "retirada",
-    dataRetirada: "",
-    horarioRetirada: "",
+    dataAgendada: "",
+    horarioAgendado: "",
     cepEntrega: "",
   });
 
@@ -92,6 +100,10 @@ export function OrderForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
+    if (!customerDetails.dataAgendada || !customerDetails.horarioAgendado) {
+      alert("Por favor, selecione a data e o horário para agendamento.");
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -108,8 +120,8 @@ export function OrderForm() {
         amountPaid: 0,
         paymentMethod: customerDetails.formaPagamento,
         receivingMethod: customerDetails.formaRecebimento,
-        pickupDate: customerDetails.dataRetirada,
-        pickupTime: customerDetails.horarioRetirada,
+        pickupDate: customerDetails.dataAgendada,
+        pickupTime: customerDetails.horarioAgendado,
         deliveryZipCode: customerDetails.cepEntrega,
         estimatedTotalAmount: orderTotal,
         customerNotes: customerDetails.observacoes,
@@ -145,7 +157,8 @@ export function OrderForm() {
         message += `   Desenho: ${item.tipoDesenho === 'personalizado' ? `Personalizado (${item.nomeCrianca})` : 'Normal'}\n`;
       });
 
-      message += `\n*Pagamento:* ${customerDetails.formaPagamento === 'pix' ? 'Pix (50% entrada)' : 'Link de Pagamento'}\n`;
+      message += `\n*Agendamento:* ${customerDetails.dataAgendada} às ${customerDetails.horarioAgendado}\n`;
+      message += `*Pagamento:* ${customerDetails.formaPagamento === 'pix' ? 'Pix (50% entrada)' : 'Link de Pagamento'}\n`;
       message += `*Recebimento:* ${customerDetails.formaRecebimento === 'retirada' ? 'Retirada no Aventureiro' : 'Entrega em Joinville'}\n`;
       if (customerDetails.cepEntrega) message += `*CEP:* ${customerDetails.cepEntrega}\n`;
       
@@ -321,6 +334,37 @@ export function OrderForm() {
                         className="rounded-xl h-12" 
                         value={customerDetails.whatsapp}
                         onChange={(e) => setCustomerDetails({...customerDetails, whatsapp: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-2xl border border-dashed border-chocolate/20">
+                    <div className="space-y-2">
+                      <Label className="text-chocolate font-black uppercase text-xs flex items-center gap-2">
+                        <CalendarClock className="h-4 w-4" /> Data para Retirar/Receber
+                      </Label>
+                      <Select 
+                        value={customerDetails.dataAgendada} 
+                        onValueChange={(val) => setCustomerDetails({...customerDetails, dataAgendada: val})}
+                      >
+                        <SelectTrigger className="rounded-xl h-12">
+                          <SelectValue placeholder="Selecione a data" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AVAILABLE_DATES.map(d => (
+                            <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-chocolate font-black uppercase text-xs">Horário Aproximado</Label>
+                      <Input 
+                        type="time"
+                        required 
+                        className="rounded-xl h-12" 
+                        value={customerDetails.horarioAgendado}
+                        onChange={(e) => setCustomerDetails({...customerDetails, horarioAgendado: e.target.value})}
                       />
                     </div>
                   </div>
