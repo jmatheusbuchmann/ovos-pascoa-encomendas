@@ -2,115 +2,49 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * SUMMARY OF SECURITY MODEL:
-     * 
-     * Core Philosophy: 
-     * This ruleset implements a Global Role-Based Access Control (RBAC) model focused on a 
-     * single-seller dashboard. Access to sensitive business data (Orders and Order Items) 
-     * is restricted to users identified as administrators.
-     * 
-     * Data Structure:
-     * - /admins/{userId}: Flag collection where the presence of a UID document grants admin status.
-     * - /orders/{orderId}: Root collection for all customer orders.
-     * - /orders/{orderId}/orderItems/{itemId}: Subcollection containing specific Easter egg details.
-     * 
-     * Key Security Decisions:
-     * 1. Global Admin Check: Instead of complex per-document ownership for orders, we use a 
-     *    centralized `/admins` lookup. This is highly performant for dashboard listing operations.
-     * 2. Prototyping Flexibility: While authorization (who can access) is strictly enforced via 
-     *    the admin check, the internal schema of orders and items is not strictly validated, 
-     *    allowing the developer to iterate on product features (themes, personalization) without 
-     *    breaking rules.
-     * 3. Identity-Based Authorization: All write operations require a verified Firebase Auth identity.
-     * 
-     * Denormalization for Authorization:
-     * - The `orderId` is expected to be present within `OrderItem` documents to ensure relational 
-     *   integrity between the path and the data, though the primary access control is inherited 
-     *   from the admin's global permission.
-     */
-
     // --- Helper Functions ---
 
-    /** @description Returns true if the request is from an authenticated user. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Returns true if the user's UID matches the provided userId. */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     /** 
-     * @description Checks the /admins collection to see if the current user has an admin document.
-     * This is the "Sole Determinant" for access across the order management system.
+     * @description Verifica se o usuário é administrador.
+     * Adicionei o seu UID específico (do erro) como administrador mestre para facilitar seu primeiro acesso.
      */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    /** @description Combines admin check with existence check for updates and deletes. */
-    function isExistingAdmin() {
-      return isAdmin() && resource != null;
+      return isSignedIn() && (
+        request.auth.uid == "mdbUrj0LoqQGL2EABx7pdUvnaJm2" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     // --- Collection Rules ---
 
-    /**
-     * @description Rules for the admin identification collection. Only the UID owner can read their status.
-     * @path /admins/{adminId}
-     * @allow (get) if request.auth.uid == "admin_123"
-     * @deny (create, update, delete) Restricted to manual setup via Firebase Console or Admin SDK.
-     * @principle Identity-based access to role flags.
-     */
     match /admins/{adminId} {
-      allow get: if isOwner(adminId);
-      allow list: if false; // Admins should not be able to list other admins for security.
-      allow create, update, delete: if false; 
+      allow get: if isSignedIn() && request.auth.uid == adminId;
+      allow list, create, update, delete: if false; 
     }
 
-    /**
-     * @description Controls access to the master list of customer orders.
-     * @path /orders/{orderId}
-     * @allow (list) if user is in /admins collection.
-     * @allow (create) if user is in /admins collection (supports manual seller entry).
-     * @deny (all) if user is not an authenticated admin.
-     * @principle Global Role-Based Access Control.
-     */
     match /orders/{orderId} {
+      // Apenas admins podem listar ou ver detalhes de qualquer pedido
       allow get, list: if isAdmin();
       
-      // Prototyping: Validate only critical relational ID to ensure document consistency.
-      allow create: if isAdmin() 
-                    && request.resource.data.id == orderId;
+      // CLIENTES podem criar pedidos (necessário para o formulário funcionar)
+      // Validamos se o ID no documento coincide com o ID da rota
+      allow create: if request.resource.data.id == orderId;
       
-      allow update: if isExistingAdmin() 
-                    && request.resource.data.id == resource.data.id;
-      
-      allow delete: if isExistingAdmin();
+      // Apenas admins podem atualizar (mudar status) ou deletar pedidos
+      allow update, delete: if isAdmin();
 
-      /**
-       * @description Rules for items within a specific order. Inherits admin-only access.
-       * @path /orders/{orderId}/orderItems/{orderItemId}
-       * @allow (create) if isAdmin() and orderId in data matches path.
-       * @deny (read) if user is a standard customer (non-admin).
-       * @principle Path-to-data consistency and inherited RBAC.
-       */
-      match /orderItems/{orderItemId} {
+      // Regras para os itens dentro do pedido
+      match /items/{itemId} {
         allow get, list: if isAdmin();
-        
-        allow create: if isAdmin() 
-                      && request.resource.data.orderId == orderId;
-        
-        allow update: if isExistingAdmin() 
-                      && request.resource.data.orderId == resource.data.orderId;
-        
-        allow delete: if isExistingAdmin();
+        allow create: if request.resource.data.orderId == orderId;
+        allow update, delete: if isAdmin();
       }
     }
 
-    // Default deny for any paths not explicitly matched.
     match /{path=**} {
       allow read, write: if false;
     }
