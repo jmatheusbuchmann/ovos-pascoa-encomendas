@@ -1,15 +1,14 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, Send, Info, Star, Truck, Plus, Trash2, PackagePlus } from "lucide-react";
+import { ShoppingCart, Send, Truck, Plus, Trash2 } from "lucide-react";
 import { useFirestore } from "@/firebase";
 import { collection, doc, writeBatch } from "firebase/firestore";
 
@@ -37,7 +36,6 @@ export function OrderForm() {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Current Item Selection State
   const [currentItem, setCurrentItem] = useState({
     tema: "",
     outroTema: "",
@@ -46,7 +44,6 @@ export function OrderForm() {
     quantidade: 1,
   });
 
-  // Customer Details State
   const [customerDetails, setCustomerDetails] = useState({
     nome: "",
     whatsapp: "",
@@ -107,6 +104,8 @@ export function OrderForm() {
         customerWhatsapp: customerDetails.whatsapp,
         orderDate: new Date().toISOString(),
         status: "pendente",
+        paymentStatus: "pendente",
+        amountPaid: 0,
         paymentMethod: customerDetails.formaPagamento,
         receivingMethod: customerDetails.formaRecebimento,
         pickupDate: customerDetails.dataRetirada,
@@ -135,7 +134,6 @@ export function OrderForm() {
 
       await batch.commit();
 
-      // Prepare WhatsApp message
       let message = `*Novo Pedido de Páscoa!*\n\n`;
       message += `*Cliente:* ${customerDetails.nome}\n`;
       message += `*WhatsApp:* ${customerDetails.whatsapp}\n\n`;
@@ -143,12 +141,12 @@ export function OrderForm() {
       
       items.forEach((item, index) => {
         const tema = item.tema === "Outro personagem" ? item.outroTema : item.tema;
-        message += `${index + 1}. ${item.quantidade}x Ovo 250g - ${tema}\n`;
+        message += `${index + 1}. ${item.quantity}x Ovo 250g - ${tema}\n`;
         message += `   Desenho: ${item.tipoDesenho === 'personalizado' ? `Personalizado (${item.nomeCrianca})` : 'Normal'}\n`;
       });
 
-      message += `\n*Pagamento:* ${customerDetails.formaPagamento === 'pix' ? 'Pix (50% entrada)' : 'Cartão'}\n`;
-      message += `*Recebimento:* ${customerDetails.formaRecebimento === 'retirada' ? 'Retirada' : 'Entrega'}\n`;
+      message += `\n*Pagamento:* ${customerDetails.formaPagamento === 'pix' ? 'Pix (50% entrada)' : 'Link de Pagamento'}\n`;
+      message += `*Recebimento:* ${customerDetails.formaRecebimento === 'retirada' ? 'Retirada no Aventureiro' : 'Entrega em Joinville'}\n`;
       if (customerDetails.cepEntrega) message += `*CEP:* ${customerDetails.cepEntrega}\n`;
       
       message += `\n*TOTAL ESTIMADO: R$ ${orderTotal.toFixed(2).replace('.', ',')}*`;
@@ -172,7 +170,6 @@ export function OrderForm() {
         </div>
 
         <div className="space-y-8">
-          {/* STEP 1: Add Items to Cart */}
           <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
             <CardHeader className="bg-easter-yellow p-6 md:p-8">
               <CardTitle className="text-chocolate font-black uppercase text-xl md:text-2xl flex items-center">
@@ -230,7 +227,7 @@ export function OrderForm() {
                     className={`flex flex-col items-center justify-between rounded-2xl border-2 p-4 cursor-pointer transition-all ${currentItem.tipoDesenho === 'normal' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100'}`}
                   >
                     <RadioGroupItem value="normal" id="normal" className="sr-only" />
-                    <span className="font-black uppercase text-chocolate text-sm text-center">Desenhos do personagem selecionado</span>
+                    <span className="font-black uppercase text-chocolate text-sm text-center leading-tight">Desenhos do personagem selecionado</span>
                     <span className="text-[10px] text-gray-500">Incluso</span>
                   </Label>
                   <Label
@@ -239,7 +236,7 @@ export function OrderForm() {
                   >
                     <RadioGroupItem value="personalizado" id="personalizado" className="sr-only" />
                     <span className="font-black uppercase text-chocolate text-sm text-center">Desenhos personalizados</span>
-                    <span className="text-[10px] text-gray-600 font-normal text-center">com foto e nome da criança</span>
+                    <span className="text-[10px] text-gray-600 font-normal text-center leading-none">com foto e nome da criança com o personagem escolhido</span>
                     <span className="mt-2 text-[10px] font-bold text-chocolate">+ R$ 10,00</span>
                   </Label>
                 </RadioGroup>
@@ -267,7 +264,6 @@ export function OrderForm() {
             </CardContent>
           </Card>
 
-          {/* ITEM LIST / CART */}
           {items.length > 0 && (
             <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline animate-in slide-in-from-bottom-4">
               <CardHeader className="bg-easter-blue-dark p-6">
@@ -280,7 +276,7 @@ export function OrderForm() {
                   <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
                     <div>
                       <p className="font-black text-chocolate uppercase">
-                        {item.quantidade}x {item.tema === "Outro personagem" ? item.outroTema : item.tema}
+                        {item.quantity}x {item.tema === "Outro personagem" ? item.outroTema : item.tema}
                       </p>
                       <p className="text-xs text-gray-500">
                         Desenho: {item.tipoDesenho === 'personalizado' ? 'Personalizado' : 'Normal'}
@@ -298,7 +294,6 @@ export function OrderForm() {
             </Card>
           )}
 
-          {/* CUSTOMER INFO & SUBMIT */}
           {items.length > 0 && (
             <form onSubmit={handleSubmit} className="space-y-8">
               <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
@@ -370,14 +365,13 @@ export function OrderForm() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pix">Pix (50% entrada)</SelectItem>
-                        <SelectItem value="cartao">Cartão de Crédito</SelectItem>
+                        <SelectItem value="link">Link de Pagamento (+taxa)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* STICKY FOOTER FOR MOBILE */}
               <div className="sticky bottom-4 z-40 bg-easter-yellow p-4 rounded-3xl chocolate-border shadow-2xl flex items-center justify-between gap-4">
                 <div>
                   <p className="text-chocolate font-black uppercase text-[10px]">Total do Pedido</p>

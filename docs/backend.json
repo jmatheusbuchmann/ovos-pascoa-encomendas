@@ -34,6 +34,15 @@
           "description": "Chosen payment method.",
           "enum": ["pix", "cartao"]
         },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Payment status of the order.",
+          "enum": ["pendente", "pago", "parcial"]
+        },
+        "amountPaid": {
+          "type": "number",
+          "description": "Amount already paid by the customer."
+        },
         "receivingMethod": {
           "type": "string",
           "description": "Receiving method.",
@@ -67,7 +76,8 @@
         "customerName",
         "customerWhatsapp",
         "orderDate",
-        "status"
+        "status",
+        "paymentStatus"
       ]
     },
     "OrderItem": {

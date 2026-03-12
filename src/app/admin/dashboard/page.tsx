@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, doc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { 
   LogOut, 
   Calendar, 
@@ -36,13 +35,14 @@ import {
   CreditCard,
   MapPin,
   ClipboardList,
-  User
+  User,
+  AlertCircle,
+  CheckCircle
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-// Componente para listar os itens de um pedido específico
 function OrderItemsList({ orderId }: { orderId: string }) {
   const db = useFirestore();
   const itemsQuery = useMemoFirebase(() => {
@@ -87,7 +87,9 @@ export default function AdminDashboard() {
     receivingMethod: "retirada",
     estimatedTotalAmount: 0,
     status: "pendente",
-    paymentMethod: "pix"
+    paymentMethod: "pix",
+    paymentStatus: "pendente",
+    amountPaid: 0
   });
 
   const ordersQuery = useMemoFirebase(() => {
@@ -106,6 +108,14 @@ export default function AdminDashboard() {
     updateDoc(doc(db, "orders", orderId), { status: newStatus });
   };
 
+  const updatePaymentStatus = (orderId: string, newStatus: string) => {
+    updateDoc(doc(db, "orders", orderId), { paymentStatus: newStatus });
+  };
+
+  const updateAmountPaid = (orderId: string, amount: number) => {
+    updateDoc(doc(db, "orders", orderId), { amountPaid: amount });
+  };
+
   const deleteOrder = (orderId: string) => {
     if (confirm("Deseja realmente excluir este pedido? Isso removerá o registro permanentemente.")) {
       deleteDoc(doc(db, "orders", orderId));
@@ -115,7 +125,8 @@ export default function AdminDashboard() {
   const handleAddManualOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     const orderId = crypto.randomUUID();
-    await addDoc(collection(db, "orders"), {
+    // Usamos setDoc para garantir que o ID do documento seja o mesmo ID do dado interno, satisfazendo as regras de segurança
+    await setDoc(doc(db, "orders", orderId), {
       ...newOrder,
       id: orderId,
       orderDate: new Date().toISOString(),
@@ -128,7 +139,9 @@ export default function AdminDashboard() {
       receivingMethod: "retirada",
       estimatedTotalAmount: 0,
       status: "pendente",
-      paymentMethod: "pix"
+      paymentMethod: "pix",
+      paymentStatus: "pendente",
+      amountPaid: 0
     });
   };
 
@@ -138,6 +151,12 @@ export default function AdminDashboard() {
     pronto: "bg-purple-500",
     entregue: "bg-green-500",
     cancelado: "bg-red-500"
+  };
+
+  const payStatusColors: Record<string, string> = {
+    pendente: "bg-red-100 text-red-700 border-red-200",
+    pago: "bg-green-100 text-green-700 border-green-200",
+    parcial: "bg-yellow-100 text-yellow-700 border-yellow-200"
   };
 
   return (
@@ -185,11 +204,33 @@ export default function AdminDashboard() {
                         step="0.01" 
                         required
                         value={newOrder.estimatedTotalAmount} 
-                        onChange={e => setNewOrder({...newOrder, estimatedTotalAmount: parseFloat(e.target.value)})} 
+                        onChange={e => setNewOrder({...newOrder, estimatedTotalAmount: parseFloat(e.target.value) || 0})} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Pagamento</Label>
+                      <Label>Já Pago (R$)</Label>
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        value={newOrder.amountPaid} 
+                        onChange={e => setNewOrder({...newOrder, amountPaid: parseFloat(e.target.value) || 0})} 
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Status Pagamento</Label>
+                      <Select value={newOrder.paymentStatus} onValueChange={v => setNewOrder({...newOrder, paymentStatus: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendente">Pendente</SelectItem>
+                          <SelectItem value="parcial">Parcial</SelectItem>
+                          <SelectItem value="pago">Pago</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Meio</Label>
                       <Select value={newOrder.paymentMethod} onValueChange={v => setNewOrder({...newOrder, paymentMethod: v})}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -263,7 +304,7 @@ export default function AdminDashboard() {
                   <TableRow>
                     <TableHead className="font-bold uppercase text-[10px]">Data</TableHead>
                     <TableHead className="font-bold uppercase text-[10px]">Cliente</TableHead>
-                    <TableHead className="font-bold uppercase text-[10px]">Forma</TableHead>
+                    <TableHead className="font-bold uppercase text-[10px]">Pagamento</TableHead>
                     <TableHead className="font-bold uppercase text-[10px]">Total</TableHead>
                     <TableHead className="font-bold uppercase text-[10px]">Status</TableHead>
                     <TableHead className="text-right font-bold uppercase text-[10px]">Ações</TableHead>
@@ -289,11 +330,11 @@ export default function AdminDashboard() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col whitespace-nowrap">
-                          <Badge variant="secondary" className="w-fit text-[9px] uppercase h-4 bg-gray-100 text-gray-600">
-                            {order.receivingMethod === 'entrega' ? 'Entrega' : 'Retirada'}
+                          <Badge variant="outline" className={`w-fit text-[9px] uppercase h-4 ${payStatusColors[order.paymentStatus || 'pendente']}`}>
+                            {order.paymentStatus?.toUpperCase() || 'PENDENTE'}
                           </Badge>
-                          <span className="text-[9px] text-gray-400 mt-1 font-bold uppercase">
-                            {order.paymentMethod === 'pix' ? 'Pix (50%)' : 'Cartão'}
+                          <span className="text-[9px] text-gray-400 mt-1 font-bold">
+                            R$ {order.amountPaid?.toFixed(2) || '0.00'} de R$ {order.estimatedTotalAmount?.toFixed(2)}
                           </span>
                         </div>
                       </TableCell>
@@ -364,7 +405,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-white">
-                {/* Seção Cliente */}
+                {/* Seção Cliente e Pagamento */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <h3 className="text-xs font-black uppercase text-chocolate flex items-center gap-2">
@@ -381,18 +422,43 @@ export default function AdminDashboard() {
 
                   <div className="space-y-4">
                     <h3 className="text-xs font-black uppercase text-chocolate flex items-center gap-2">
-                      <CreditCard className="h-4 w-4" /> Pagamento e Valor
+                      <CreditCard className="h-4 w-4" /> Gestão de Pagamento
                     </h3>
-                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Total Estimado</span>
-                        <span className="text-lg font-black text-chocolate">R$ {viewingOrder.estimatedTotalAmount?.toFixed(2)}</span>
+                    <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[9px] uppercase font-bold text-gray-400">Status</Label>
+                          <Select 
+                            defaultValue={viewingOrder.paymentStatus || "pendente"} 
+                            onValueChange={(val) => updatePaymentStatus(viewingOrder.id, val)}
+                          >
+                            <SelectTrigger className="h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pendente">Pendente</SelectItem>
+                              <SelectItem value="parcial">Parcial</SelectItem>
+                              <SelectItem value="pago">Pago</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[9px] uppercase font-bold text-gray-400">Valor Pago (R$)</Label>
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            defaultValue={viewingOrder.amountPaid || 0}
+                            className="h-8 text-xs font-bold"
+                            onBlur={(e) => updateAmountPaid(viewingOrder.id, parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center border-t border-gray-200 pt-2">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Meio Escolhido</span>
-                        <Badge variant="outline" className="font-black text-[10px] uppercase text-chocolate border-chocolate/30">
-                          {viewingOrder.paymentMethod === 'pix' ? 'Pix (50% Entrada)' : 'Cartão de Crédito'}
-                        </Badge>
+                      
+                      <div className="pt-2 border-t border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase">Restante</span>
+                          <span className={`text-sm font-black ${(viewingOrder.estimatedTotalAmount - (viewingOrder.amountPaid || 0)) > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                            R$ {(viewingOrder.estimatedTotalAmount - (viewingOrder.amountPaid || 0)).toFixed(2)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
