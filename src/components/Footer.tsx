@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export function Footer() {
   return (
     <footer className="py-12 px-4 bg-chocolate text-white">
@@ -20,6 +22,14 @@ export function Footer() {
           <h4 className="font-black text-sm uppercase text-white/50 mb-4 tracking-widest">Atendimento</h4>
           <p className="text-lg font-black text-easter-yellow">📱 (47) 92000-8427</p>
           <p className="text-xs text-white/50 font-bold uppercase mt-4">Desenvolvido por Idear.web</p>
+          <div className="pt-4">
+            <Link 
+              href="/admin/login" 
+              className="text-[10px] text-white/20 hover:text-white/50 uppercase font-black tracking-tighter transition-colors"
+            >
+              Painel Admin
+            </Link>
+          </div>
         </div>
       </div>
       
