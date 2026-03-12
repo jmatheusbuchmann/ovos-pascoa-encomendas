@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { collection, query, orderBy, doc, updateDoc, deleteDoc, writeBatch, getDocs } from "firebase/firestore";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -37,7 +37,8 @@ import {
   ClipboardList,
   User,
   Plus,
-  X
+  X,
+  Pencil
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -78,11 +79,12 @@ export default function AdminDashboard() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [viewingOrder, setViewingOrder] = useState<any>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
 
-  // Estados para o novo pedido manual
-  const [newOrder, setNewOrder] = useState({
+  // Estados para o formulário de pedido (Novo ou Edição)
+  const [orderForm, setOrderForm] = useState({
     customerName: "",
     customerWhatsapp: "",
     receivingMethod: "retirada",
@@ -136,14 +138,56 @@ export default function AdminDashboard() {
     }
   };
 
+  const resetForm = () => {
+    setOrderForm({
+      customerName: "",
+      customerWhatsapp: "",
+      receivingMethod: "retirada",
+      estimatedTotalAmount: 0,
+      status: "pendente",
+      paymentMethod: "pix",
+      paymentStatus: "pendente",
+      amountPaid: 0,
+      pickupDate: "",
+      pickupTime: "",
+      deliveryZipCode: "",
+      customerNotes: ""
+    });
+    setManualItems([]);
+    setEditingOrderId(null);
+  };
+
+  const handleEditOrder = async (order: any) => {
+    setEditingOrderId(order.id);
+    setOrderForm({
+      customerName: order.customerName || "",
+      customerWhatsapp: order.customerWhatsapp || "",
+      receivingMethod: order.receivingMethod || "retirada",
+      estimatedTotalAmount: order.estimatedTotalAmount || 0,
+      status: order.status || "pendente",
+      paymentMethod: order.paymentMethod || "pix",
+      paymentStatus: order.paymentStatus || "pendente",
+      amountPaid: order.amountPaid || 0,
+      pickupDate: order.pickupDate || "",
+      pickupTime: order.pickupTime || "",
+      deliveryZipCode: order.deliveryZipCode || "",
+      customerNotes: order.customerNotes || ""
+    });
+
+    // Buscar itens para o formulário de edição
+    const itemsSnap = await getDocs(collection(db, "orders", order.id, "items"));
+    const items = itemsSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    setManualItems(items);
+    setIsFormDialogOpen(true);
+  };
+
   const addManualItem = () => {
     if (!currentManualItem.characterTheme) return;
     const itemTotal = currentManualItem.quantity * currentManualItem.unitPrice;
     const itemToAdd = { ...currentManualItem, itemTotal, id: crypto.randomUUID() };
     setManualItems([...manualItems, itemToAdd]);
     
-    // Atualiza o valor total automaticamente
-    setNewOrder(prev => ({
+    setOrderForm(prev => ({
       ...prev,
       estimatedTotalAmount: prev.estimatedTotalAmount + itemTotal
     }));
@@ -159,26 +203,35 @@ export default function AdminDashboard() {
 
   const removeManualItem = (id: string, total: number) => {
     setManualItems(manualItems.filter(i => i.id !== id));
-    setNewOrder(prev => ({
+    setOrderForm(prev => ({
       ...prev,
       estimatedTotalAmount: Math.max(0, prev.estimatedTotalAmount - total)
     }));
   };
 
-  const handleAddManualOrder = async (e: React.FormEvent) => {
+  const handleSaveOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (manualItems.length === 0 && !confirm("Salvar pedido sem itens?")) return;
 
-    const orderId = crypto.randomUUID();
+    const orderId = editingOrderId || crypto.randomUUID();
     const batch = writeBatch(db);
     const orderRef = doc(db, "orders", orderId);
 
+    // Se for edição, vamos deletar os itens antigos antes de salvar os novos no batch
+    // (Simplificação: em um sistema real, poderíamos atualizar apenas os alterados)
+    if (editingOrderId) {
+      const oldItemsSnap = await getDocs(collection(db, "orders", orderId, "items"));
+      oldItemsSnap.docs.forEach(d => {
+        batch.delete(d.ref);
+      });
+    }
+
     batch.set(orderRef, {
-      ...newOrder,
+      ...orderForm,
       id: orderId,
-      orderDate: new Date().toISOString(),
+      orderDate: editingOrderId ? orders?.find(o => o.id === editingOrderId)?.orderDate : new Date().toISOString(),
       isManuallyAdded: true
-    });
+    }, { merge: true });
 
     manualItems.forEach(item => {
       const itemRef = doc(collection(db, "orders", orderId, "items"));
@@ -191,22 +244,8 @@ export default function AdminDashboard() {
 
     await batch.commit();
     
-    setIsAddDialogOpen(false);
-    setManualItems([]);
-    setNewOrder({
-      customerName: "",
-      customerWhatsapp: "",
-      receivingMethod: "retirada",
-      estimatedTotalAmount: 0,
-      status: "pendente",
-      paymentMethod: "pix",
-      paymentStatus: "pendente",
-      amountPaid: 0,
-      pickupDate: "",
-      pickupTime: "",
-      deliveryZipCode: "",
-      customerNotes: ""
-    });
+    setIsFormDialogOpen(false);
+    resetForm();
   };
 
   const statusColors: Record<string, string> = {
@@ -232,25 +271,30 @@ export default function AdminDashboard() {
             <p className="text-gray-500 font-medium">Controle total da sua produção de Páscoa 2026</p>
           </div>
           <div className="flex gap-2">
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isFormDialogOpen} onOpenChange={(open) => {
+              setIsFormDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
-                <Button className="bg-chocolate text-white rounded-xl font-bold">
+                <Button className="bg-chocolate text-white rounded-xl font-bold" onClick={() => resetForm()}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Novo Pedido Manual
                 </Button>
               </DialogTrigger>
               <DialogContent className="rounded-3xl max-w-2xl overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
-                  <DialogTitle className="text-chocolate font-black uppercase">Adicionar Pedido Manual</DialogTitle>
+                  <DialogTitle className="text-chocolate font-black uppercase">
+                    {editingOrderId ? "Editar Pedido" : "Adicionar Pedido Manual"}
+                  </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleAddManualOrder} className="space-y-6 pt-4">
+                <form onSubmit={handleSaveOrder} className="space-y-6 pt-4">
                   {/* Seção Cliente */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Nome do Cliente</Label>
                       <Input 
                         required 
-                        value={newOrder.customerName} 
-                        onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} 
+                        value={orderForm.customerName} 
+                        onChange={e => setOrderForm({...orderForm, customerName: e.target.value})} 
                       />
                     </div>
                     <div className="space-y-2">
@@ -258,8 +302,8 @@ export default function AdminDashboard() {
                       <Input 
                         required 
                         placeholder="(47) 9..."
-                        value={newOrder.customerWhatsapp} 
-                        onChange={e => setNewOrder({...newOrder, customerWhatsapp: e.target.value})} 
+                        value={orderForm.customerWhatsapp} 
+                        onChange={e => setOrderForm({...orderForm, customerWhatsapp: e.target.value})} 
                       />
                     </div>
                   </div>
@@ -349,23 +393,23 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <Label className="text-xs font-black uppercase text-chocolate">Logística</Label>
-                      <Select value={newOrder.receivingMethod} onValueChange={v => setNewOrder({...newOrder, receivingMethod: v})}>
+                      <Select value={orderForm.receivingMethod} onValueChange={v => setOrderForm({...orderForm, receivingMethod: v})}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="retirada">Retirada (Aventureiro)</SelectItem>
                           <SelectItem value="entrega">Entrega (Joinville)</SelectItem>
                         </SelectContent>
                       </Select>
-                      {newOrder.receivingMethod === 'entrega' ? (
+                      {orderForm.receivingMethod === 'entrega' ? (
                         <Input 
                           placeholder="CEP Entrega" 
-                          value={newOrder.deliveryZipCode}
-                          onChange={e => setNewOrder({...newOrder, deliveryZipCode: e.target.value})}
+                          value={orderForm.deliveryZipCode}
+                          onChange={e => setOrderForm({...orderForm, deliveryZipCode: e.target.value})}
                         />
                       ) : (
                         <div className="grid grid-cols-2 gap-2">
-                          <Input type="date" value={newOrder.pickupDate} onChange={e => setNewOrder({...newOrder, pickupDate: e.target.value})} />
-                          <Input type="time" value={newOrder.pickupTime} onChange={e => setNewOrder({...newOrder, pickupTime: e.target.value})} />
+                          <Input type="date" value={orderForm.pickupDate} onChange={e => setOrderForm({...orderForm, pickupDate: e.target.value})} />
+                          <Input type="time" value={orderForm.pickupTime} onChange={e => setOrderForm({...orderForm, pickupTime: e.target.value})} />
                         </div>
                       )}
                     </div>
@@ -377,20 +421,20 @@ export default function AdminDashboard() {
                           <Label className="text-[10px]">Total (R$)</Label>
                           <Input 
                             type="number" step="0.01" 
-                            value={newOrder.estimatedTotalAmount} 
-                            onChange={e => setNewOrder({...newOrder, estimatedTotalAmount: parseFloat(e.target.value) || 0})} 
+                            value={orderForm.estimatedTotalAmount} 
+                            onChange={e => setOrderForm({...orderForm, estimatedTotalAmount: parseFloat(e.target.value) || 0})} 
                           />
                         </div>
                         <div>
                           <Label className="text-[10px]">Pago (R$)</Label>
                           <Input 
                             type="number" step="0.01" 
-                            value={newOrder.amountPaid} 
-                            onChange={e => setNewOrder({...newOrder, amountPaid: parseFloat(e.target.value) || 0})} 
+                            value={orderForm.amountPaid} 
+                            onChange={e => setOrderForm({...orderForm, amountPaid: parseFloat(e.target.value) || 0})} 
                           />
                         </div>
                       </div>
-                      <Select value={newOrder.paymentStatus} onValueChange={v => setNewOrder({...newOrder, paymentStatus: v})}>
+                      <Select value={orderForm.paymentStatus} onValueChange={v => setOrderForm({...orderForm, paymentStatus: v})}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="pendente">Pendente</SelectItem>
@@ -401,7 +445,9 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full bg-chocolate text-white font-black uppercase h-12 shadow-lg">Finalizar e Salvar Pedido</Button>
+                  <Button type="submit" className="w-full bg-chocolate text-white font-black uppercase h-12 shadow-lg">
+                    {editingOrderId ? "Salvar Alterações" : "Finalizar e Salvar Pedido"}
+                  </Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -528,6 +574,14 @@ export default function AdminDashboard() {
                             onClick={() => setViewingOrder(order)}
                           >
                             <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8 text-blue-500 hover:bg-blue-50"
+                            onClick={() => handleEditOrder(order)}
+                          >
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <Button 
                             size="icon" 
