@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, Send, Info, Star, Truck } from "lucide-react";
+import { ShoppingCart, Send, Info, Star, Truck, Plus, Trash2, PackagePlus } from "lucide-react";
+import { useFirestore } from "@/firebase";
+import { collection, doc, writeBatch } from "firebase/firestore";
 
 const BASE_PRICE = 49.9;
 const EXTRA_CHARACTER_PRICE = 10.0;
@@ -20,13 +22,34 @@ const THEMES = [
   "Casa Mágica da Gabby", "Capivara", "Stitch", "Outro personagem"
 ];
 
+interface OrderItem {
+  id: string;
+  tema: string;
+  outroTema?: string;
+  tipoDesenho: string;
+  nomeCrianca: string;
+  quantidade: number;
+  totalItem: number;
+}
+
 export function OrderForm() {
-  const [formData, setFormData] = useState({
-    nome: "",
+  const db = useFirestore();
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Current Item Selection State
+  const [currentItem, setCurrentItem] = useState({
     tema: "",
     outroTema: "",
     tipoDesenho: "normal",
     nomeCrianca: "",
+    quantidade: 1,
+  });
+
+  // Customer Details State
+  const [customerDetails, setCustomerDetails] = useState({
+    nome: "",
+    whatsapp: "",
     observacoes: "",
     formaPagamento: "pix",
     formaRecebimento: "retirada",
@@ -35,49 +58,107 @@ export function OrderForm() {
     cepEntrega: "",
   });
 
-  const totalEstimado = useMemo(() => {
+  const unitPrice = useMemo(() => {
     let total = BASE_PRICE;
-    if (formData.tema === "Outro personagem") total += EXTRA_CHARACTER_PRICE;
-    if (formData.tipoDesenho === "personalizado") total += CUSTOM_DRAWING_PRICE;
+    if (currentItem.tema === "Outro personagem") total += EXTRA_CHARACTER_PRICE;
+    if (currentItem.tipoDesenho === "personalizado") total += CUSTOM_DRAWING_PRICE;
     return total;
-  }, [formData.tema, formData.tipoDesenho]);
+  }, [currentItem.tema, currentItem.tipoDesenho]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const orderTotal = useMemo(() => {
+    return items.reduce((acc, item) => acc + item.totalItem, 0);
+  }, [items]);
+
+  const addItem = () => {
+    if (!currentItem.tema) return;
+    
+    const newItem: OrderItem = {
+      id: crypto.randomUUID(),
+      ...currentItem,
+      totalItem: unitPrice * currentItem.quantidade
+    };
+    
+    setItems([...items, newItem]);
+    setCurrentItem({
+      tema: "",
+      outroTema: "",
+      tipoDesenho: "normal",
+      nomeCrianca: "",
+      quantidade: 1,
+    });
+  };
+
+  const removeItem = (id: string) => {
+    setItems(items.filter(i => i.id !== id));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const temaFinal = formData.tema === "Outro personagem" ? `Outro (${formData.outroTema})` : formData.tema;
-    const desenhoFinal = formData.tipoDesenho === "personalizado" ? `Personalizado com foto (${formData.nomeCrianca})` : "Normal do personagem";
-    
-    let message = `Olá! Quero encomendar um ovo de Páscoa.\n\n`;
-    message += `*Pedido:*\n`;
-    message += `- Produto: Ovo 250g de chocolate ao leite com desenhos de colorir\n`;
-    message += `- Cliente: ${formData.nome}\n`;
-    message += `- Personagem/Tema: ${temaFinal}\n`;
-    if (formData.outroTema) message += `- Outro personagem informado: ${formData.outroTema}\n`;
-    message += `- Tipo de desenho: ${desenhoFinal}\n`;
-    if (formData.nomeCrianca) message += `- Nome da criança: ${formData.nomeCrianca}\n`;
-    if (formData.observacoes) message += `- Observações: ${formData.observacoes}\n`;
-    message += `- Forma de pagamento: ${formData.formaPagamento === 'pix' ? 'Entrada 50% via Pix' : 'Link de pagamento (Cartão)'}\n`;
-    message += `- Forma de recebimento: ${formData.formaRecebimento === 'retirada' ? 'Retirada' : 'Entrega'}\n`;
-    
-    if (formData.formaRecebimento === "retirada") {
-      message += `- Data desejada: ${formData.dataRetirada || 'A combinar'}\n`;
-      message += `- Horário desejada: ${formData.horarioRetirada || 'A combinar'}\n`;
-      message += `\n*Gostaria de agendar a retirada no bairro Aventureiro.*`;
-    } else {
-      message += `- CEP para entrega: ${formData.cepEntrega}\n`;
-      message += `\n*Aguardo consulta da taxa de entrega pelo CEP informado.*`;
+    if (items.length === 0) return;
+    setIsSubmitting(true);
+
+    try {
+      const orderId = crypto.randomUUID();
+      const batch = writeBatch(db);
+
+      const orderData = {
+        id: orderId,
+        customerName: customerDetails.nome,
+        customerWhatsapp: customerDetails.whatsapp,
+        orderDate: new Date().toISOString(),
+        status: "pendente",
+        paymentMethod: customerDetails.formaPagamento,
+        receivingMethod: customerDetails.formaRecebimento,
+        pickupDate: customerDetails.dataRetirada,
+        pickupTime: customerDetails.horarioRetirada,
+        deliveryZipCode: customerDetails.cepEntrega,
+        estimatedTotalAmount: orderTotal,
+        customerNotes: customerDetails.observacoes,
+        isManuallyAdded: false
+      };
+
+      batch.set(doc(db, "orders", orderId), orderData);
+
+      items.forEach((item) => {
+        const itemRef = doc(collection(db, "orders", orderId, "items"));
+        batch.set(itemRef, {
+          id: itemRef.id,
+          orderId,
+          quantity: item.quantidade,
+          characterTheme: item.tema === "Outro personagem" ? item.outroTema : item.tema,
+          drawingType: item.tipoDesenho,
+          childNameForDrawing: item.nomeCrianca,
+          unitPrice: item.totalItem / item.quantidade,
+          itemTotal: item.totalItem
+        });
+      });
+
+      await batch.commit();
+
+      // Prepare WhatsApp message
+      let message = `*Novo Pedido de Páscoa!*\n\n`;
+      message += `*Cliente:* ${customerDetails.nome}\n`;
+      message += `*WhatsApp:* ${customerDetails.whatsapp}\n\n`;
+      message += `*ITENS:*\n`;
+      
+      items.forEach((item, index) => {
+        const tema = item.tema === "Outro personagem" ? item.outroTema : item.tema;
+        message += `${index + 1}. ${item.quantidade}x Ovo 250g - ${tema}\n`;
+        message += `   Desenho: ${item.tipoDesenho === 'personalizado' ? `Personalizado (${item.nomeCrianca})` : 'Normal'}\n`;
+      });
+
+      message += `\n*Pagamento:* ${customerDetails.formaPagamento === 'pix' ? 'Pix (50% entrada)' : 'Cartão'}\n`;
+      message += `*Recebimento:* ${customerDetails.formaRecebimento === 'retirada' ? 'Retirada' : 'Entrega'}\n`;
+      if (customerDetails.cepEntrega) message += `*CEP:* ${customerDetails.cepEntrega}\n`;
+      
+      message += `\n*TOTAL ESTIMADO: R$ ${orderTotal.toFixed(2).replace('.', ',')}*`;
+
+      window.open(`https://wa.me/5547920008427?text=${encodeURIComponent(message)}`, "_blank");
+    } catch (error) {
+      console.error("Erro ao salvar pedido:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (formData.tipoDesenho === "personalizado") {
-      message += `\n\n*Vou enviar a foto da criança para personalização.*`;
-    }
-
-    message += `\n\n*Valor estimado: R$ ${totalEstimado.toFixed(2).replace('.', ',')}*`;
-    message += `\n(Taxa de entrega não incluída)`;
-
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/5547920008427?text=${encodedMessage}`, "_blank");
   };
 
   return (
@@ -87,33 +168,22 @@ export function OrderForm() {
           <h2 className="text-3xl md:text-5xl font-black text-white uppercase mb-4 text-shadow-sm">
             Monte seu <span className="text-easter-yellow">Pedido</span>
           </h2>
-          <p className="text-white/90 font-medium">Preencha os campos abaixo com atenção.</p>
+          <p className="text-white/90 font-medium">Você pode adicionar mais de um ovo ao mesmo pedido!</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+        <div className="space-y-8">
+          {/* STEP 1: Add Items to Cart */}
           <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
             <CardHeader className="bg-easter-yellow p-6 md:p-8">
               <CardTitle className="text-chocolate font-black uppercase text-xl md:text-2xl flex items-center">
-                <ShoppingCart className="mr-3 h-6 w-6 md:h-8 md:w-8" /> 1. Dados Básicos
+                <Plus className="mr-3 h-6 w-6 md:h-8 md:w-8" /> Configurar Item
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 md:p-8 space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="nome" className="text-chocolate font-black uppercase text-xs">Seu Nome Completo</Label>
-                <Input 
-                  id="nome" 
-                  required 
-                  className="rounded-xl border-gray-200 h-12 focus:ring-easter-blue-dark" 
-                  placeholder="Como devemos te chamar?" 
-                  value={formData.nome}
-                  onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                />
-              </div>
-
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-chocolate font-black uppercase text-xs">Personagem / Tema</Label>
-                  <Select required onValueChange={(val) => setFormData({...formData, tema: val})}>
+                  <Select value={currentItem.tema} onValueChange={(val) => setCurrentItem({...currentItem, tema: val})}>
                     <SelectTrigger className="rounded-xl border-gray-200 h-12">
                       <SelectValue placeholder="Escolha o tema" />
                     </SelectTrigger>
@@ -123,186 +193,207 @@ export function OrderForm() {
                   </Select>
                 </div>
 
-                {formData.tema === "Outro personagem" && (
-                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                    <Label htmlFor="outroTema" className="text-chocolate font-black uppercase text-xs">Qual Personagem?</Label>
-                    <Input 
-                      id="outroTema" 
-                      required 
-                      className="rounded-xl border-gray-200 h-12" 
-                      placeholder="Ex: Naruto, Princesas..." 
-                      value={formData.outroTema}
-                      onChange={(e) => setFormData({...formData, outroTema: e.target.value})}
-                    />
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
-            <CardHeader className="bg-easter-yellow p-6 md:p-8">
-              <CardTitle className="text-chocolate font-black uppercase text-xl md:text-2xl flex items-center">
-                <Star className="mr-3 h-6 w-6 md:h-8 md:w-8" /> 2. Brinde: Desenhos de colorir
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 md:p-8 space-y-6">
-              <RadioGroup 
-                defaultValue="normal" 
-                className="grid md:grid-cols-2 gap-4"
-                onValueChange={(val) => setFormData({...formData, tipoDesenho: val})}
-              >
-                <Label
-                  htmlFor="normal"
-                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-4 md:p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'normal' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
-                >
-                  <RadioGroupItem value="normal" id="normal" className="sr-only" />
-                  <span className="font-black uppercase text-chocolate mb-1 text-center text-sm md:text-base">Desenhos do personagem selecionado</span>
-                  <span className="text-[10px] md:text-xs text-gray-500 text-center">Incluso no preço base</span>
-                  <span className="mt-4 bg-chocolate text-white text-[10px] px-2 py-1 rounded-full uppercase">Grátis</span>
-                </Label>
-                <Label
-                  htmlFor="personalizado"
-                  className={`flex flex-col items-center justify-between rounded-2xl border-2 p-4 md:p-6 cursor-pointer transition-all ${formData.tipoDesenho === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100 hover:border-easter-blue-light/50'}`}
-                >
-                  <RadioGroupItem value="personalizado" id="personalizado" className="sr-only" />
-                  <div className="flex flex-col items-center text-center gap-1">
-                    <span className="font-black uppercase text-chocolate leading-tight text-sm md:text-base">Desenhos personalizados</span>
-                    <span className="text-[10px] text-gray-600 font-normal leading-tight">com foto e nome da criança com o personagem escolhido</span>
-                  </div>
-                  <span className="mt-4 bg-easter-yellow text-chocolate font-black text-[10px] px-2 py-1 rounded-full uppercase">+ R$ 10,00</span>
-                </Label>
-              </RadioGroup>
-
-              {formData.tipoDesenho === "personalizado" && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <Label htmlFor="nomeCrianca" className="text-chocolate font-black uppercase text-xs">Nome da Criança</Label>
+                <div className="space-y-2">
+                  <Label className="text-chocolate font-black uppercase text-xs">Quantidade</Label>
                   <Input 
-                    id="nomeCrianca" 
-                    required 
-                    className="rounded-xl border-gray-200 h-12" 
-                    placeholder="Como deve aparecer nos desenhos?" 
-                    value={formData.nomeCrianca}
-                    onChange={(e) => setFormData({...formData, nomeCrianca: e.target.value})}
+                    type="number" 
+                    min="1" 
+                    className="rounded-xl h-12" 
+                    value={currentItem.quantidade}
+                    onChange={(e) => setCurrentItem({...currentItem, quantidade: parseInt(e.target.value) || 1})}
                   />
-                  <p className="text-xs text-blue-600 font-bold">* Você enviará a foto pelo WhatsApp após o pedido.</p>
+                </div>
+              </div>
+
+              {currentItem.tema === "Outro personagem" && (
+                <div className="space-y-2 animate-in fade-in">
+                  <Label className="text-chocolate font-black uppercase text-xs">Qual Personagem?</Label>
+                  <Input 
+                    required 
+                    className="rounded-xl h-12" 
+                    placeholder="Ex: Naruto, Princesas..." 
+                    value={currentItem.outroTema}
+                    onChange={(e) => setCurrentItem({...currentItem, outroTema: e.target.value})}
+                  />
                 </div>
               )}
+
+              <div className="space-y-4">
+                <Label className="text-chocolate font-black uppercase text-xs">Brinde: Desenhos de colorir</Label>
+                <RadioGroup 
+                  value={currentItem.tipoDesenho} 
+                  className="grid md:grid-cols-2 gap-4"
+                  onValueChange={(val) => setCurrentItem({...currentItem, tipoDesenho: val})}
+                >
+                  <Label
+                    htmlFor="normal"
+                    className={`flex flex-col items-center justify-between rounded-2xl border-2 p-4 cursor-pointer transition-all ${currentItem.tipoDesenho === 'normal' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100'}`}
+                  >
+                    <RadioGroupItem value="normal" id="normal" className="sr-only" />
+                    <span className="font-black uppercase text-chocolate text-sm text-center">Desenhos do personagem selecionado</span>
+                    <span className="text-[10px] text-gray-500">Incluso</span>
+                  </Label>
+                  <Label
+                    htmlFor="personalizado"
+                    className={`flex flex-col items-center justify-between rounded-2xl border-2 p-4 cursor-pointer transition-all ${currentItem.tipoDesenho === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100'}`}
+                  >
+                    <RadioGroupItem value="personalizado" id="personalizado" className="sr-only" />
+                    <span className="font-black uppercase text-chocolate text-sm text-center">Desenhos personalizados</span>
+                    <span className="text-[10px] text-gray-600 font-normal text-center">com foto e nome da criança</span>
+                    <span className="mt-2 text-[10px] font-bold text-chocolate">+ R$ 10,00</span>
+                  </Label>
+                </RadioGroup>
+              </div>
+
+              {currentItem.tipoDesenho === "personalizado" && (
+                <div className="space-y-2 animate-in fade-in">
+                  <Label className="text-chocolate font-black uppercase text-xs">Nome da Criança</Label>
+                  <Input 
+                    className="rounded-xl h-12" 
+                    placeholder="Nome para os desenhos" 
+                    value={currentItem.nomeCrianca}
+                    onChange={(e) => setCurrentItem({...currentItem, nomeCrianca: e.target.value})}
+                  />
+                </div>
+              )}
+
+              <Button 
+                onClick={addItem}
+                disabled={!currentItem.tema}
+                className="w-full h-14 bg-chocolate text-white rounded-2xl font-black uppercase tracking-wider"
+              >
+                <Plus className="mr-2" /> Adicionar ao Pedido
+              </Button>
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
-            <CardHeader className="bg-easter-yellow p-6 md:p-8">
-              <CardTitle className="text-chocolate font-black uppercase text-xl md:text-2xl flex items-center">
-                <Truck className="mr-3 h-6 w-6 md:h-8 md:w-8" /> 3. Entrega e Pagamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 md:p-8 space-y-6 md:space-y-8">
-              <div className="space-y-4">
-                <Label className="text-chocolate font-black uppercase text-xs">Como quer receber?</Label>
-                <RadioGroup 
-                  defaultValue="retirada" 
-                  className="flex gap-4"
-                  onValueChange={(val) => setFormData({...formData, formaRecebimento: val})}
-                >
-                  <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-xl border border-gray-200 flex-1">
-                    <RadioGroupItem value="retirada" id="retirada-opt" />
-                    <Label htmlFor="retirada-opt" className="font-bold cursor-pointer text-sm">Retirada</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-xl border border-gray-200 flex-1">
-                    <RadioGroupItem value="entrega" id="entrega-opt" />
-                    <Label htmlFor="entrega-opt" className="font-bold cursor-pointer text-sm">Entrega</Label>
-                  </div>
-                </RadioGroup>
-
-                {formData.formaRecebimento === "retirada" ? (
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-4 animate-in fade-in">
-                    <p className="text-blue-800 text-sm font-medium">Retirada no bairro <strong>Aventureiro</strong> até 04/04.</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] font-black uppercase">Data Desejada</Label>
-                        <Input type="date" value={formData.dataRetirada} onChange={(e) => setFormData({...formData, dataRetirada: e.target.value})} className="rounded-lg h-10" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] font-black uppercase">Horário</Label>
-                        <Input type="time" value={formData.horarioRetirada} onChange={(e) => setFormData({...formData, horarioRetirada: e.target.value})} className="rounded-lg h-10" />
-                      </div>
+          {/* ITEM LIST / CART */}
+          {items.length > 0 && (
+            <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline animate-in slide-in-from-bottom-4">
+              <CardHeader className="bg-easter-blue-dark p-6">
+                <CardTitle className="text-white font-black uppercase text-xl flex items-center">
+                  <ShoppingCart className="mr-3" /> Resumo do Pedido ({items.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                {items.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div>
+                      <p className="font-black text-chocolate uppercase">
+                        {item.quantidade}x {item.tema === "Outro personagem" ? item.outroTema : item.tema}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Desenho: {item.tipoDesenho === 'personalizado' ? 'Personalizado' : 'Normal'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <p className="font-black text-chocolate">R$ {item.totalItem.toFixed(2)}</p>
+                      <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700">
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-2 animate-in fade-in">
-                    <Label htmlFor="cep" className="text-orange-800 text-[10px] font-black uppercase">Seu CEP</Label>
-                    <Input 
-                      id="cep" 
-                      required 
-                      placeholder="00000-000" 
-                      className="rounded-lg h-10"
-                      value={formData.cepEntrega}
-                      onChange={(e) => setFormData({...formData, cepEntrega: e.target.value})}
-                    />
-                    <p className="text-orange-800 text-[10px] font-bold uppercase">A taxa de entrega será informada via WhatsApp.</p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* CUSTOMER INFO & SUBMIT */}
+          {items.length > 0 && (
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <Card className="border-none shadow-2xl rounded-3xl overflow-hidden chocolate-outline">
+                <CardHeader className="bg-easter-yellow p-6 md:p-8">
+                  <CardTitle className="text-chocolate font-black uppercase text-xl flex items-center">
+                    <Truck className="mr-3" /> 2. Finalizar Detalhes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 md:p-8 space-y-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-chocolate font-black uppercase text-xs">Seu Nome</Label>
+                      <Input 
+                        required 
+                        className="rounded-xl h-12" 
+                        value={customerDetails.nome}
+                        onChange={(e) => setCustomerDetails({...customerDetails, nome: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-chocolate font-black uppercase text-xs">Seu WhatsApp</Label>
+                      <Input 
+                        required 
+                        placeholder="(00) 00000-0000"
+                        className="rounded-xl h-12" 
+                        value={customerDetails.whatsapp}
+                        onChange={(e) => setCustomerDetails({...customerDetails, whatsapp: e.target.value})}
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
 
-              <div className="space-y-4">
-                <Label className="text-chocolate font-black uppercase text-xs">Forma de Pagamento Preferida</Label>
-                <Select required defaultValue="pix" onValueChange={(val) => setFormData({...formData, formaPagamento: val})}>
-                  <SelectTrigger className="rounded-xl h-12">
-                    <SelectValue placeholder="Escolha a forma" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pix">Entrada 50% via Pix (Reserva)</SelectItem>
-                    <SelectItem value="cartao">Cartão de Crédito (Link + Taxas)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-4">
+                    <Label className="text-chocolate font-black uppercase text-xs">Como quer receber?</Label>
+                    <RadioGroup 
+                      value={customerDetails.formaRecebimento} 
+                      className="flex gap-4"
+                      onValueChange={(val) => setCustomerDetails({...customerDetails, formaRecebimento: val})}
+                    >
+                      <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-xl flex-1 cursor-pointer">
+                        <RadioGroupItem value="retirada" id="ret-opt" />
+                        <Label htmlFor="ret-opt" className="font-bold cursor-pointer">Retirada</Label>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded-xl flex-1 cursor-pointer">
+                        <RadioGroupItem value="entrega" id="ent-opt" />
+                        <Label htmlFor="ent-opt" className="font-bold cursor-pointer">Entrega</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="obs" className="text-chocolate font-black uppercase text-xs">Observações Adicionais</Label>
-                <Textarea 
-                  id="obs" 
-                  placeholder="Ex: Alguém mais irá retirar, recado especial..." 
-                  className="rounded-xl min-h-[100px]" 
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData({...formData, observacoes: e.target.value})}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                  {customerDetails.formaRecebimento === "entrega" && (
+                    <div className="space-y-2 animate-in fade-in">
+                      <Label className="text-chocolate font-black uppercase text-xs">CEP para Entrega</Label>
+                      <Input 
+                        required 
+                        placeholder="00000-000"
+                        className="rounded-xl h-12" 
+                        value={customerDetails.cepEntrega}
+                        onChange={(e) => setCustomerDetails({...customerDetails, cepEntrega: e.target.value})}
+                      />
+                      <p className="text-[10px] text-orange-600 font-bold uppercase">A taxa será calculada após o pedido.</p>
+                    </div>
+                  )}
 
-          <div className="sticky bottom-4 md:bottom-6 z-40 bg-easter-yellow p-4 md:p-6 rounded-3xl chocolate-border shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 mx-2 md:mx-0">
-            <div className="text-center md:text-left flex md:flex-col items-center md:items-start gap-2 md:gap-0">
-              <p className="text-chocolate font-black uppercase text-[10px] tracking-widest md:mb-1">Total Estimado</p>
-              <div className="flex items-baseline gap-1 md:gap-2">
-                <span className="text-chocolate text-2xl md:text-4xl font-black">R$ {totalEstimado.toFixed(2).replace('.', ',')}</span>
-                <span className="text-chocolate/60 text-[8px] md:text-[10px] font-bold uppercase leading-tight hidden xs:inline">+ entrega <br className="hidden md:block" /> se houver</span>
-              </div>
-            </div>
-            
-            <Button 
-              type="submit" 
-              className="bg-chocolate text-white hover:bg-black w-full md:w-auto h-12 md:h-16 px-4 md:px-10 rounded-2xl font-black text-xs md:text-lg uppercase flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95"
-            >
-              <Send className="mr-2 h-4 w-4 md:h-6 md:w-6" />
-              Enviar pelo WhatsApp
-            </Button>
-          </div>
-        </form>
+                  <div className="space-y-2">
+                    <Label className="text-chocolate font-black uppercase text-xs">Forma de Pagamento</Label>
+                    <Select value={customerDetails.formaPagamento} onValueChange={(val) => setCustomerDetails({...customerDetails, formaPagamento: val})}>
+                      <SelectTrigger className="rounded-xl h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pix">Pix (50% entrada)</SelectItem>
+                        <SelectItem value="cartao">Cartão de Crédito</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
 
-        <div className="mt-8 md:mt-12 bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20 text-white space-y-4">
-          <div className="flex items-start gap-3">
-            <Info className="h-6 w-6 text-easter-yellow shrink-0 mt-1" />
-            <div>
-              <p className="font-bold text-sm uppercase text-easter-yellow">Informações Importantes:</p>
-              <ul className="text-sm space-y-2 mt-2 opacity-90">
-                <li>• Sua encomenda só é confirmada após o pagamento da <strong>entrada de 50%</strong>.</li>
-                <li>• Pedidos via cartão possuem taxas da operadora (solicite o link).</li>
-                <li>• Entregas são feitas apenas em Joinville (consulte seu bairro).</li>
-                <li>• Prazo final para pedidos: <strong>30 de Março</strong>.</li>
-              </ul>
-            </div>
-          </div>
+              {/* STICKY FOOTER FOR MOBILE */}
+              <div className="sticky bottom-4 z-40 bg-easter-yellow p-4 rounded-3xl chocolate-border shadow-2xl flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-chocolate font-black uppercase text-[10px]">Total do Pedido</p>
+                  <p className="text-chocolate text-2xl font-black">R$ {orderTotal.toFixed(2).replace('.', ',')}</p>
+                </div>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="bg-chocolate text-white h-12 px-6 rounded-2xl font-black uppercase text-sm flex-1"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {isSubmitting ? 'Salvando...' : 'Pedir no WhatsApp'}
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </section>
