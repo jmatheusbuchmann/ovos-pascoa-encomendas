@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, doc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
+import { collection, query, orderBy, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -36,8 +36,8 @@ import {
   MapPin,
   ClipboardList,
   User,
-  AlertCircle,
-  CheckCircle
+  Plus,
+  X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -81,6 +81,7 @@ export default function AdminDashboard() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [viewingOrder, setViewingOrder] = useState<any>(null);
 
+  // Estados para o novo pedido manual
   const [newOrder, setNewOrder] = useState({
     customerName: "",
     customerWhatsapp: "",
@@ -89,7 +90,20 @@ export default function AdminDashboard() {
     status: "pendente",
     paymentMethod: "pix",
     paymentStatus: "pendente",
-    amountPaid: 0
+    amountPaid: 0,
+    pickupDate: "",
+    pickupTime: "",
+    deliveryZipCode: "",
+    customerNotes: ""
+  });
+
+  const [manualItems, setManualItems] = useState<any[]>([]);
+  const [currentManualItem, setCurrentManualItem] = useState({
+    quantity: 1,
+    characterTheme: "",
+    drawingType: "normal",
+    childNameForDrawing: "",
+    unitPrice: 49.90
   });
 
   const ordersQuery = useMemoFirebase(() => {
@@ -122,17 +136,63 @@ export default function AdminDashboard() {
     }
   };
 
+  const addManualItem = () => {
+    if (!currentManualItem.characterTheme) return;
+    const itemTotal = currentManualItem.quantity * currentManualItem.unitPrice;
+    const itemToAdd = { ...currentManualItem, itemTotal, id: crypto.randomUUID() };
+    setManualItems([...manualItems, itemToAdd]);
+    
+    // Atualiza o valor total automaticamente
+    setNewOrder(prev => ({
+      ...prev,
+      estimatedTotalAmount: prev.estimatedTotalAmount + itemTotal
+    }));
+
+    setCurrentManualItem({
+      quantity: 1,
+      characterTheme: "",
+      drawingType: "normal",
+      childNameForDrawing: "",
+      unitPrice: 49.90
+    });
+  };
+
+  const removeManualItem = (id: string, total: number) => {
+    setManualItems(manualItems.filter(i => i.id !== id));
+    setNewOrder(prev => ({
+      ...prev,
+      estimatedTotalAmount: Math.max(0, prev.estimatedTotalAmount - total)
+    }));
+  };
+
   const handleAddManualOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (manualItems.length === 0 && !confirm("Salvar pedido sem itens?")) return;
+
     const orderId = crypto.randomUUID();
-    // Usamos setDoc para garantir que o ID do documento seja o mesmo ID do dado interno, satisfazendo as regras de segurança
-    await setDoc(doc(db, "orders", orderId), {
+    const batch = writeBatch(db);
+    const orderRef = doc(db, "orders", orderId);
+
+    batch.set(orderRef, {
       ...newOrder,
       id: orderId,
       orderDate: new Date().toISOString(),
       isManuallyAdded: true
     });
+
+    manualItems.forEach(item => {
+      const itemRef = doc(collection(db, "orders", orderId, "items"));
+      batch.set(itemRef, {
+        ...item,
+        id: itemRef.id,
+        orderId
+      });
+    });
+
+    await batch.commit();
+    
     setIsAddDialogOpen(false);
+    setManualItems([]);
     setNewOrder({
       customerName: "",
       customerWhatsapp: "",
@@ -141,7 +201,11 @@ export default function AdminDashboard() {
       status: "pendente",
       paymentMethod: "pix",
       paymentStatus: "pendente",
-      amountPaid: 0
+      amountPaid: 0,
+      pickupDate: "",
+      pickupTime: "",
+      deliveryZipCode: "",
+      customerNotes: ""
     });
   };
 
@@ -174,52 +238,158 @@ export default function AdminDashboard() {
                   <PlusCircle className="mr-2 h-4 w-4" /> Novo Pedido Manual
                 </Button>
               </DialogTrigger>
-              <DialogContent className="rounded-3xl max-w-md">
+              <DialogContent className="rounded-3xl max-w-2xl overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
-                  <DialogTitle className="text-chocolate font-black uppercase">Adicionar Pedido</DialogTitle>
+                  <DialogTitle className="text-chocolate font-black uppercase">Adicionar Pedido Manual</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleAddManualOrder} className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label>Nome do Cliente</Label>
-                    <Input 
-                      required 
-                      value={newOrder.customerName} 
-                      onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>WhatsApp</Label>
-                    <Input 
-                      required 
-                      placeholder="(47) 9..."
-                      value={newOrder.customerWhatsapp} 
-                      onChange={e => setNewOrder({...newOrder, customerWhatsapp: e.target.value})} 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleAddManualOrder} className="space-y-6 pt-4">
+                  {/* Seção Cliente */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Valor Total (R$)</Label>
+                      <Label>Nome do Cliente</Label>
                       <Input 
-                        type="number" 
-                        step="0.01" 
-                        required
-                        value={newOrder.estimatedTotalAmount} 
-                        onChange={e => setNewOrder({...newOrder, estimatedTotalAmount: parseFloat(e.target.value) || 0})} 
+                        required 
+                        value={newOrder.customerName} 
+                        onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Já Pago (R$)</Label>
+                      <Label>WhatsApp</Label>
                       <Input 
-                        type="number" 
-                        step="0.01" 
-                        value={newOrder.amountPaid} 
-                        onChange={e => setNewOrder({...newOrder, amountPaid: parseFloat(e.target.value) || 0})} 
+                        required 
+                        placeholder="(47) 9..."
+                        value={newOrder.customerWhatsapp} 
+                        onChange={e => setNewOrder({...newOrder, customerWhatsapp: e.target.value})} 
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Status Pagamento</Label>
+
+                  {/* Seção Itens */}
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-4">
+                    <h3 className="text-xs font-black uppercase text-chocolate flex items-center gap-2">
+                      <ClipboardList className="h-4 w-4" /> Itens da Encomenda
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="md:col-span-2">
+                        <Label className="text-[10px]">Tema/Personagem</Label>
+                        <Input 
+                          placeholder="Ex: Frozen, Stitch..."
+                          value={currentManualItem.characterTheme}
+                          onChange={e => setCurrentManualItem({...currentManualItem, characterTheme: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px]">Qtd</Label>
+                        <Input 
+                          type="number"
+                          value={currentManualItem.quantity}
+                          onChange={e => setCurrentManualItem({...currentManualItem, quantity: parseInt(e.target.value) || 1})}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[10px]">Tipo Desenho</Label>
+                        <Select 
+                          value={currentManualItem.drawingType} 
+                          onValueChange={v => setCurrentManualItem({...currentManualItem, drawingType: v})}
+                        >
+                          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="normal">Normal do Personagem</SelectItem>
+                            <SelectItem value="personalizado">Personalizado (+R$10)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {currentManualItem.drawingType === 'personalizado' && (
+                        <div>
+                          <Label className="text-[10px]">Nome da Criança</Label>
+                          <Input 
+                            value={currentManualItem.childNameForDrawing}
+                            onChange={e => setCurrentManualItem({...currentManualItem, childNameForDrawing: e.target.value})}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <Button 
+                      type="button" 
+                      onClick={addManualItem}
+                      className="w-full bg-white border-2 border-chocolate text-chocolate hover:bg-chocolate hover:text-white font-bold h-9"
+                    >
+                      <Plus className="mr-2 h-4 w-4" /> Adicionar Item à Lista
+                    </Button>
+
+                    {/* Lista de itens adicionados */}
+                    {manualItems.length > 0 && (
+                      <div className="space-y-2 mt-4 pt-4 border-t border-gray-200">
+                        {manualItems.map((item) => (
+                          <div key={item.id} className="bg-white p-2 rounded-lg border flex justify-between items-center shadow-sm">
+                            <div className="text-xs font-bold">
+                              {item.quantity}x {item.characterTheme} ({item.drawingType})
+                            </div>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-red-500"
+                              onClick={() => removeManualItem(item.id, item.itemTotal)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Seção Logística e Financeiro */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <Label className="text-xs font-black uppercase text-chocolate">Logística</Label>
+                      <Select value={newOrder.receivingMethod} onValueChange={v => setNewOrder({...newOrder, receivingMethod: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="retirada">Retirada (Aventureiro)</SelectItem>
+                          <SelectItem value="entrega">Entrega (Joinville)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {newOrder.receivingMethod === 'entrega' ? (
+                        <Input 
+                          placeholder="CEP Entrega" 
+                          value={newOrder.deliveryZipCode}
+                          onChange={e => setNewOrder({...newOrder, deliveryZipCode: e.target.value})}
+                        />
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input type="date" value={newOrder.pickupDate} onChange={e => setNewOrder({...newOrder, pickupDate: e.target.value})} />
+                          <Input type="time" value={newOrder.pickupTime} onChange={e => setNewOrder({...newOrder, pickupTime: e.target.value})} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      <Label className="text-xs font-black uppercase text-chocolate">Financeiro</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[10px]">Total (R$)</Label>
+                          <Input 
+                            type="number" step="0.01" 
+                            value={newOrder.estimatedTotalAmount} 
+                            onChange={e => setNewOrder({...newOrder, estimatedTotalAmount: parseFloat(e.target.value) || 0})} 
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px]">Pago (R$)</Label>
+                          <Input 
+                            type="number" step="0.01" 
+                            value={newOrder.amountPaid} 
+                            onChange={e => setNewOrder({...newOrder, amountPaid: parseFloat(e.target.value) || 0})} 
+                          />
+                        </div>
+                      </div>
                       <Select value={newOrder.paymentStatus} onValueChange={v => setNewOrder({...newOrder, paymentStatus: v})}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -229,18 +399,9 @@ export default function AdminDashboard() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Meio</Label>
-                      <Select value={newOrder.paymentMethod} onValueChange={v => setNewOrder({...newOrder, paymentMethod: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pix">Pix</SelectItem>
-                          <SelectItem value="cartao">Cartão</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-                  <Button type="submit" className="w-full bg-chocolate text-white font-black uppercase h-12">Salvar no Sistema</Button>
+
+                  <Button type="submit" className="w-full bg-chocolate text-white font-black uppercase h-12 shadow-lg">Finalizar e Salvar Pedido</Button>
                 </form>
               </DialogContent>
             </Dialog>
