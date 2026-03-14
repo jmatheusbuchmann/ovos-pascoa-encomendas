@@ -24,10 +24,10 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      // Admins têm acesso total
+      // Admins têm acesso total (inclusive list e update)
       allow get, list, update, delete: if isAdmin();
       
-      // Admins podem criar livremente. Clientes podem criar se o ID bater.
+      // Clientes podem criar pedidos e admins também
       allow create: if isAdmin() || (request.resource.data.id == orderId);
 
       match /items/{itemId} {

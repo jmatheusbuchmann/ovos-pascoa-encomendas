@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ export function PromoHero() {
   };
 
   return (
-    <section className="relative pt-12 pb-20 px-4 overflow-hidden">
+    <section className="relative pt-8 pb-20 px-4 overflow-hidden">
       <div className="max-w-4xl mx-auto text-center relative z-10">
         <Badge className="bg-easter-yellow text-chocolate hover:bg-easter-yellow font-bold text-sm md:text-base py-1 px-4 mb-6 chocolate-border animate-bounce-slow">
           PÁSCOA DOS PEQUENOS 2026
@@ -47,9 +48,6 @@ export function PromoHero() {
           </div>
         </div>
       </div>
-      
-      {/* Decorative Chocolate Top Line */}
-      <div className="absolute top-0 left-0 w-full h-4 bg-chocolate shadow-md z-20" />
     </section>
   );
 }
