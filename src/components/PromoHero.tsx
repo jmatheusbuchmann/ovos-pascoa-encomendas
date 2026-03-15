@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, ShoppingBasket } from "lucide-react";
+import { CalendarDays, ShoppingBasket, MessageCircle } from "lucide-react";
 
 export function PromoHero() {
   const scrollToForm = () => {
@@ -34,6 +34,16 @@ export function PromoHero() {
           >
             <ShoppingBasket className="mr-2 h-6 w-6" />
             Montar Meu Pedido
+          </Button>
+          <Button 
+            asChild
+            size="lg" 
+            className="bg-green-600 text-white hover:bg-green-700 text-xl font-black h-16 px-10 rounded-full border-4 border-white shadow-xl transform transition hover:scale-105 active:scale-95 uppercase"
+          >
+            <a href="https://wa.me/5547920008427" target="_blank" rel="noopener noreferrer" className="flex items-center">
+              <MessageCircle className="mr-2 h-6 w-6" />
+              Chamar no WhatsApp
+            </a>
           </Button>
         </div>
 
