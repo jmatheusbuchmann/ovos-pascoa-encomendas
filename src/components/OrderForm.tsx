@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Send, Truck, Plus, Trash2, CalendarClock } from "lucide-react";
 import { useFirestore } from "@/firebase";
 import { collection, doc, writeBatch } from "firebase/firestore";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const BASE_PRICE = 49.9;
 const EXTRA_CHARACTER_PRICE = 10.0;
@@ -21,13 +23,22 @@ const THEMES = [
   "Casa Mágica da Gabby", "Capivara", "Stitch", "Outro personagem"
 ];
 
+// Gerar as datas disponíveis para 2026 dinamicamente
 const AVAILABLE_DATES = [
-  { value: "31/03", label: "31/03 (Segunda-feira)" },
-  { value: "01/04", label: "01/04 (Terça-feira)" },
-  { value: "02/04", label: "02/04 (Quarta-feira)" },
-  { value: "03/04", label: "03/04 (Quinta-feira)" },
-  { value: "04/04", label: "04/04 (Sexta-feira)" },
-];
+  new Date(2026, 2, 31), // 31 de Março (Mês é 0-indexed, então 2 = Março)
+  new Date(2026, 3, 1),  // 01 de Abril (3 = Abril)
+  new Date(2026, 3, 2),  // 02 de Abril
+  new Date(2026, 3, 3),  // 03 de Abril
+  new Date(2026, 3, 4),  // 04 de Abril
+].map(date => {
+  const dayFormatted = format(date, "dd/MM");
+  const weekDay = format(date, "EEEE", { locale: ptBR });
+  const capitalizedWeekDay = weekDay.charAt(0).toUpperCase() + weekDay.slice(1);
+  return {
+    value: dayFormatted,
+    label: `${dayFormatted} (${capitalizedWeekDay})`
+  };
+});
 
 interface OrderItem {
   id: string;
@@ -248,8 +259,10 @@ export function OrderForm() {
                     className={`flex flex-col items-center justify-between rounded-2xl border-2 p-4 cursor-pointer transition-all ${currentItem.tipoDesenho === 'personalizado' ? 'border-chocolate bg-easter-blue-light/5' : 'border-gray-100'}`}
                   >
                     <RadioGroupItem value="personalizado" id="personalizado" className="sr-only" />
-                    <span className="font-black uppercase text-chocolate text-sm text-center">Desenhos personalizados</span>
-                    <span className="text-[10px] text-gray-600 font-normal text-center leading-none">com foto e nome da criança com o personagem escolhido</span>
+                    <div className="flex flex-col items-center">
+                      <span className="font-black uppercase text-chocolate text-sm text-center leading-tight">Desenhos personalizados</span>
+                      <span className="text-[10px] text-gray-500 mt-1 text-center font-normal">com foto e nome da criança com o personagem escolhido</span>
+                    </div>
                     <span className="mt-2 text-[10px] font-bold text-chocolate">+ R$ 10,00</span>
                   </Label>
                 </RadioGroup>
@@ -416,17 +429,17 @@ export function OrderForm() {
                 </CardContent>
               </Card>
 
-              <div className="sticky bottom-4 z-40 bg-easter-yellow p-4 rounded-3xl chocolate-border shadow-2xl flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-chocolate font-black uppercase text-[10px]">Total do Pedido</p>
-                  <p className="text-chocolate text-2xl font-black">R$ {orderTotal.toFixed(2).replace('.', ',')}</p>
+              <div className="sticky bottom-4 z-40 bg-easter-yellow p-3 md:p-4 rounded-3xl chocolate-border shadow-2xl flex items-center justify-between gap-3 md:gap-4">
+                <div className="shrink-0">
+                  <p className="text-chocolate font-black uppercase text-[9px] md:text-[10px] leading-tight">Total</p>
+                  <p className="text-chocolate text-lg md:text-2xl font-black">R$ {orderTotal.toFixed(2).replace('.', ',')}</p>
                 </div>
                 <Button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="bg-chocolate text-white h-12 px-6 rounded-2xl font-black uppercase text-sm flex-1"
+                  className="bg-chocolate text-white h-11 md:h-12 px-4 md:px-6 rounded-2xl font-black uppercase text-xs md:text-sm flex-1 truncate"
                 >
-                  <Send className="mr-2 h-4 w-4" />
+                  <Send className="mr-2 h-3 w-3 md:h-4 md:w-4" />
                   {isSubmitting ? 'Salvando...' : 'Pedir no WhatsApp'}
                 </Button>
               </div>
